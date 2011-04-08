@@ -1,0 +1,14 @@
+To clone a repository for local use:
+
+    $ git clone git@github.com:bslawski/CS145.git
+    $ cd CS145
+    $ git remote add upstream git://github.com/bslawski/CS145.git
+
+
+To edit the repository:
+
+    $ git pull
+    < make changes >
+    $ git add -a      // Only if new files are added
+    $ git commit -m "Summary of changes" -a
+    $ git push
