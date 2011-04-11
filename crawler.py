@@ -42,8 +42,8 @@ def crawler(URL_seeds=["http://www.caltech.edu"]):
 		count += 1
 		#URL = queue.pop() # next page is arbitrary set element
 		URL = queue.popleft() # fetch next page (FIFO -> Breath First)
-		links_on_page = fetch_links(URL)
-		
+		links_on_page = fetch_links('20296417')
+		links_on_page = None
 		if (links_on_page is not None):
 			# Store results
 			links_on_page = filter(search, links_on_page) # don't examine pages not matching DOMAIN_PATTERN

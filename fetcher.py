@@ -17,6 +17,7 @@ The output is "None" if the URL is not a valid HTML page or some error occurred.
 #We would use urllib2 to retrieve the webpage.
 from sgmllib import SGMLParser
 from urlparse import urljoin
+import urllib
 import urllib2
 
 #SGMLParser is like a template for implementing a HTML parser. All its methods
@@ -81,23 +82,38 @@ def fetch_html_page(url):
     return (real_url, content)
 
 #Fetch the hyperlinks. First fetch the content then use URLLister to parse them.
-def fetch_links(url):
-    links=None
+#def fetch_links(url):
+#    links=None
+#    try:
+#        parser = URLLister()
+#        ru,s=fetch_html_page(url)
+#        if s is not None:
+#            parser.feed(s)
+#            parser.close()
+#            links=parser.get_links(ru)
+#    except:
+#        pass
+#    return links
+
+def fetch_links(userid):
+    new_ids=None
     try:
-        parser = URLLister()
-        ru,s=fetch_html_page(url)
-        if s is not None:
-            parser.feed(s)
-            parser.close()
-            links=parser.get_links(ru)
+        sock = urllib.urlopen('http://api.twitter.com/1/followers/ids.json' \
+                            + '?user_id=' + userid)
+        json_file = sock.read()
+        new_ids = json_file.rsplit(',')
     except:
-        pass
-    return links
+        print 'Unable to read follower list of user ' + userid
+    print new_ids
+    return new_ids
+        
+
 
 #Entrance of this script, just like the "main()" function in C.
 if __name__ == "__main__":
     import sys
     if len(sys.argv)!=2 or not sys.argv[1].startswith("http://"):
+
         pn=sys.argv[0]
         i=max(pn.rfind("\\"),pn.rfind("/"))+1
         print "usage: %s http://...\tShow all hyperlinks in an HTML page."%pn[i:]
