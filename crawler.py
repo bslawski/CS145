@@ -50,22 +50,28 @@ def crawler(URL_seeds=['813286']):
                         print '\nSleeping for ' + str(sleeptime) + ' seconds\n'
                         time.sleep(sleeptime)
                     starttime = time.time()
-
-		# Process a page
-		count += 1
-		#URL = queue.pop() # next page is arbitrary set element
 		user = queue.popleft() # fetch next page (FIFO -> Breath First)
 		nusers += 1
                 followers = fetch_links(user)
                 nlookups += 1
-		if (len(followers) > 0 and not followers[0] == ''):
+
+                if followers == None :
+                    queue.appendleft(user)
+                    nusers -= 1
+                    print '\nTwitter is busy. Pausing 10 min.\n'
+                    time.sleep(600)
+                    continue
+
+		if (not (followers == None) and len(followers) > 0 and not (followers[0] == '')):
                         new_pages = []
 			# Add unencountered pages to queue
                         for ids in followers :
                             if not (ids in queue or ids in URLs_found) :
                                 new_pages.append(ids)
+
                         write_user(f, user, followers)
-			queue.extend(new_pages) # add pages to queue	
+                        count += 1
+       			queue.extend(new_pages) # add pages to queue	
         
 		# Print progress
 		if (((count % output) == 0) or ((nusers % 1) == 0)):

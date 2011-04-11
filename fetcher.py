@@ -68,14 +68,19 @@ class URLLister(SGMLParser):
 
 
 def fetch_links(userid):
-    new_ids=None
     try:
-        sock = urllib.urlopen('http://api.twitter.com/1/followers/ids.json' \
-                            + '?user_id=' + userid)
+        target_url = 'http://api.twitter.com/1/followers/ids.json' \
+                   + '?user_id=' + userid
+        sock = urllib.urlopen(target_url)
         new_ids = sock.read()
-        new_ids = new_ids.lstrip('[')
-        new_ids = new_ids.rstrip(']')
-        new_ids = new_ids.split(',')
+        if new_ids == new_ids.lstrip('<'):
+            new_ids = new_ids.lstrip('[')
+            new_ids = new_ids.rstrip(']')
+            new_ids = new_ids.split(',')
+        else:
+            new_ids = None
+
+        sock.close()
     except:
         print 'Unable to read follower list of user ' + userid
     return new_ids
