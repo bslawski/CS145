@@ -66,45 +66,18 @@ class URLLister(SGMLParser):
         res.discard(current_url)   #Self-link is removed
         return list(res)
 
-#Fetch an HTML file, return the real (redirected) URL and the content.
-def fetch_html_page(url):
-    content=None
-    real_url=url
-    try:
-        urllib2.socket.setdefaulttimeout(10)  #Bad page, timeout in 10s.
-        usock = urllib2.urlopen(url)
-        real_url=usock.url  #real_url will be changed if there is a redirection. 
-        if "text/html" in usock.info()['content-type']:
-            content=usock.read()    #Fetch it if it is html but not mp3/avi/...
-        usock.close()
-    except:
-        pass
-    return (real_url, content)
-
-#Fetch the hyperlinks. First fetch the content then use URLLister to parse them.
-#def fetch_links(url):
-#    links=None
-#    try:
-#        parser = URLLister()
-#        ru,s=fetch_html_page(url)
-#        if s is not None:
-#            parser.feed(s)
-#            parser.close()
-#            links=parser.get_links(ru)
-#    except:
-#        pass
-#    return links
 
 def fetch_links(userid):
     new_ids=None
     try:
         sock = urllib.urlopen('http://api.twitter.com/1/followers/ids.json' \
                             + '?user_id=' + userid)
-        json_file = sock.read()
-        new_ids = json_file.rsplit(',')
+        new_ids = sock.read()
+        new_ids = new_ids.lstrip('[')
+        new_ids = new_ids.rstrip(']')
+        new_ids = new_ids.split(',')
     except:
         print 'Unable to read follower list of user ' + userid
-    print new_ids
     return new_ids
         
 

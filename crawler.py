@@ -17,87 +17,78 @@ from fetcher import fetch_links
 import re, csv
 from collections import deque
 import random
+import time
 
-def crawler(URL_seeds=["http://www.caltech.edu"]):
-	#URL_seeds = ["http://www.caltech.edu"]
+def crawler(URL_seeds=['20296417']):
 
 	MAX_ITERATIONS = 200000 # How many iterations? Finite execution, despite tons of garbage pages.
-	MAX_RESULTS = 100 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+	MAX_RESULTS = 5000 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
 	URLS_FETCH = 3
 	
-	DOMAIN_PATTERN = '^http[s]?://([^.]+?[.])*?.?' # restrict search to this domain
-	def search(x): return re.search(DOMAIN_PATTERN, x)
-	def match(x): return re.match(DOMAIN_PATTERN, x)
-	
 	URLs_found = set(URL_seeds) # set holding pages all URLs encountered
-	result = {} # dictionary holding URL + links out	
-	# Using both deque (for breadth-first + efficiency) and a set (for ease of eliminating duplicates)
+	nusers = 1
+
 	queue = deque(URL_seeds) # queue holding pages to process
-	queue_set = set(URL_seeds) # set holding pages in queue
 	
 	count = 0
 	output = 1
-	while (queue) and (count < MAX_ITERATIONS) and (len(result) < MAX_RESULTS):
+
+        # file to save structure in
+        f = open('structure.dat','w')
+
+        nlookups = 0
+        starttime = time.time()
+
+	while (queue) and (count < MAX_ITERATIONS) and (nusers < MAX_RESULTS):
+
+                if nlookups >= 150:
+                    nlookups = 0
+                    sleeptime = 3600 - (time.time() - starttime)
+                    if sleeptime > 0:
+                        print '\nSleeping for ' + str(sleeptime) + ' seconds\n'
+                        time.sleep(sleeptime)
+                    starttime = time.time()
+
 		# Process a page
 		count += 1
 		#URL = queue.pop() # next page is arbitrary set element
-		URL = queue.popleft() # fetch next page (FIFO -> Breath First)
-		links_on_page = fetch_links('20296417')
-		links_on_page = None
-		if (links_on_page is not None):
-			# Store results
-			links_on_page = filter(search, links_on_page) # don't examine pages not matching DOMAIN_PATTERN
-			links = set(links_on_page) # (set) links encountered on page
-			result[URL] = len(links) # (dictionary) add page and its number of links
-			
+		user = queue.popleft() # fetch next page (FIFO -> Breath First)
+		nusers += 1
+                followers = fetch_links(user)
+                nlookups += 1
+		if (followers is not None):
+                        new_pages = []
 			# Add unencountered pages to queue
-			#links.difference_update(URLs_found) # throw away all URLs previously encountered
-			#queue_set.update(links) # add previously unencountered pages to queue
-			new_pages = links.difference(queue_set, URLs_found) # throw away all URLs previously encountered
-			queue_set.update(new_pages) # add pages to set
-			queue.extend(new_pages) # add pages to queue
-			
+                        for ids in followers :
+                            if not (ids in queue or ids in URLs_found) :
+                                new_pages.append(ids)
+                        write_user(f, user, new_pages)
+			queue.extend(new_pages) # add pages to queue	
+        
 		# Print progress
-		if (((count % output) == 0) or ((len(result) % 100) == 0)):
+		if (((count % output) == 0) or ((nusers % 1) == 0)):
 			output = count / output
-			print "Progress: %d pages crawled. %d results found. Queue of %d" % (count, len(result), len(queue))
+			print "Progress: %d pages crawled. %d results found. Queue of %d" % (count, nusers, len(queue))
 			
-	
+	f.close()
+
 	# Output results
 	print "\nFinished!"
-	print "Found %d results, by crawling through %d pages. Queue at termination: %d" % (len(result), count, len(queue))
+	print "Found %d results, by crawling through %d pages. Queue at termination: %d" % (nusers, count, len(queue))
 
-	# TODO: Output queue
 
-	# Write results to CSV file
-	output_file = "output.txt"
-	f = open(output_file, 'a')
-	URL_List = []
-	try:
-	    for key in result:
-		URL_List.append(key)
-	    	f.write(key + '\n')                            
-	finally:
-	    f.close()
-	print "\nWrote results to file %s" % output_file	
-
-	result_file = "result.txt"
-	f = open(result_file, 'a')
-	try:
-	    for i in range(URLS_FETCH):
-		if URL_List != []:
-		    url = random.choice(URL_List)
-		    f.write(url + '\n')
-	finally:
-	    f.close()
-	print "\nWrote final results to file %s" %result_file       
+def write_user(writefile, user, followers) :
+    writefile.write(user + ':')
+    for fol_id in followers :
+        writefile.write(' ' + fol_id)
+    writefile.write('\n')    
 
 #Entrance of this script, just like the "main()" function in C.
 
 if __name__ == "__main__":
     import sys, pstats, cProfile, os.path
 
-    if len(sys.argv)==1 or not sys.argv[1].startswith("http://"):
+    if len(sys.argv)==1 :
        if len(sys.argv)==1:
     		# No args: Use default startpage
     		print crawler()
@@ -122,6 +113,4 @@ if __name__ == "__main__":
         print sys.argv[1:]
         print crawler(sys.argv[1:])
 
-#p = pstats.Stats('crawlprof')
-#p.sort_stats('time').print_stats(10)
 
