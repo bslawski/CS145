@@ -19,7 +19,9 @@ from collections import deque
 import random
 import time
 
-def crawler(URL_seeds=['20296417']):
+
+# Seeded with BarackObama
+def crawler(URL_seeds=['813286']):
 
 	MAX_ITERATIONS = 200000 # How many iterations? Finite execution, despite tons of garbage pages.
 	MAX_RESULTS = 5000 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
@@ -56,13 +58,13 @@ def crawler(URL_seeds=['20296417']):
 		nusers += 1
                 followers = fetch_links(user)
                 nlookups += 1
-		if (followers is not None):
+		if (len(followers) > 0 and not followers[0] == ''):
                         new_pages = []
 			# Add unencountered pages to queue
                         for ids in followers :
                             if not (ids in queue or ids in URLs_found) :
                                 new_pages.append(ids)
-                        write_user(f, user, new_pages)
+                        write_user(f, user, followers)
 			queue.extend(new_pages) # add pages to queue	
         
 		# Print progress
