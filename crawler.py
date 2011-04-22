@@ -19,9 +19,11 @@ import threading
 import time
 
 
-def crawler(crawlerID):
+def crawlerRun(threadID, sleeptime):
 
         global poolLock, nlookups, urlPool
+
+        print "Thread: " + str(threadID) + " started"
 
 	MAX_ITERATIONS = 200000 # How many iterations? Finite execution, despite tons of garbage pages.
 	MAX_RESULTS = 15 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
@@ -47,8 +49,8 @@ def crawler(crawlerID):
                     exit()
 
                 while len(urlPool) == 0 :
-                    print "Thread " + str(crawlerID) + " unable to retrieve user from pool." \
-                          + " Pausing for 30 sec.\n"
+                    print "Thread " + str(threadID) + " unable to retrieve user from pool." \
+                          + " Pausing for " + str(sleeptime) + " sec.\n"
                     time.sleep(30)
 
                 poolLock.acquire()
@@ -122,26 +124,28 @@ USAGE: crawler <int seedID> <int nThreads>
         exit()
 
     try:
-        seedID = int(sys.argv[1])
+        seedID = sys.argv[1]
         nThreads = int(sys.argv[2])
     except ValueError:
         print usage
         exit()
 
     # Tests the seedID
+    print seedID
     followers = fetch_links(seedID)
     if followers == None:
         print usage
         print "Unable to open seedID.  Twitter may be busy.\n\n"
         exit()
 
+    urlPool.extend(followers)
+
     poolLock = thread.allocate_lock()
 
     nlookups = 1
-    activeThreads = 0
 
     for id in range(0,nThreads):
-        activeThreads += 1
-        thread.start_new_thread(crawler, (id))
+        print "Starting Thread " + str(id) + "..."
+        thread.start_new_thread(crawlerRun, (id, 30))
 
 

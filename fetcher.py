@@ -91,10 +91,4 @@ def fetch_links(userid):
 #Entrance of this script, just like the "main()" function in C.
 if __name__ == "__main__":
     import sys
-    if len(sys.argv)!=2 or not sys.argv[1].startswith("http://"):
-
-        pn=sys.argv[0]
-        i=max(pn.rfind("\\"),pn.rfind("/"))+1
-        print "usage: %s http://...\tShow all hyperlinks in an HTML page."%pn[i:]
-    else:
-        print fetch_links(sys.argv[1])
+    print fetch_links(sys.argv[1])
