@@ -21,26 +21,36 @@ import time
 
 def crawlerRun(threadID, sleeptime):
 
-        global poolLock, nlookups, urlPool
+        global poolLock, nlookups, urlPool, urlFound, nusers, activeThreads
 
         print "Thread: " + str(threadID) + " started"
+        sys.stdout.flush()
 
-	MAX_ITERATIONS = 200000 # How many iterations? Finite execution, despite tons of garbage pages.
 	MAX_RESULTS = 15 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
 	URLS_FETCH = 3
 	
-	nusers = 1
-	
-	count = 0
 	output = 1
 
         # file to save structure in
-        f = open('structure.' + str(threadID) + '.dat','w')
+        try :
+            f = open('structure.' + str(threadID) + '.dat','w')
+        except IOError :
+            print "Unable to open " + "structure." + str(threadID) + \
+                  ".dat for writing.  Thread " + str(threadID) + "exiting."
+            sys.stdout.flush()
+            exit()
 
-	while (queue) and (count < MAX_ITERATIONS) and (nusers < MAX_RESULTS):
+
+	while nusers < MAX_RESULTS:
+
+                print "Thread " + str(threadID) + " crawling..."
+                sys.stdout.flush()
 
                 """ Changes url periodically to avoid lookup limit """
                 if nlookups >= 125:
+
+                    print "MAX LOOKUPS REACHED!"
+                    sys.stdout.flush()
                     # makes sure no new lookups occur while url is being changed
 #                    poolLock.acquire()
 #                    self.changeURL()
@@ -51,46 +61,49 @@ def crawlerRun(threadID, sleeptime):
                 while len(urlPool) == 0 :
                     print "Thread " + str(threadID) + " unable to retrieve user from pool." \
                           + " Pausing for " + str(sleeptime) + " sec.\n"
+                    sys.stdout.flush()
                     time.sleep(30)
 
                 poolLock.acquire()
-		user = urlPool.popleft() # fetch next page (FIFO -> Breath First)
+		user = urlPool.pop(0) # fetch next page (FIFO -> Breath First)
                 poolLock.release()
 		nusers += 1
                 followers = fetch_links(user)
                 nlookups += 1
 
                 if followers == None :
-                    queue.appendleft(user)
+                    urlPool.append(user)
                     nusers -= 1
-                    print '\nTwitter is busy. Pausing 10 min.\n'
-                    time.sleep(600)
+                    print '\n\nProfile ' + str(user) + 'is busy.  Absorbing back into pool.\n'
+                    sys.stdout.flush()
                     continue
+
+                urlFound.append(user)
 
 		if (not (followers == None) and len(followers) > 0 and not (followers[0] == '')):
                         new_pages = []
 			# Add unencountered pages to queue
                         for ids in followers :
-                            if not (ids in queue or ids in URLs_found) :
+                            if not (ids in urlPool or ids in urlFound) :
                                 new_pages.append(ids)
 
                         write_user(f, user, followers)
-                        count += 1
-                        if len(queue) < 200000:
+                        if len(urlPool) < 200000:
                             poolLock.acquire()
        			    urlPool.extend(new_pages) # add pages to queue	
                             poolLock.release()
         
 		# Print progress
-		if (((count % output) == 0) or ((nusers % 1) == 0)):
-			output = count / output
-			print "Progress: %d pages crawled. %d results found. Queue of %d" % (count, nusers, len(queue))
-			
+		if (nusers % output) == 0:
+			print "Progress: %d pages crawled.  %d users in pool." % (nusers, len(urlPool))
+			sys.stdout.flush()
+
 	f.close()
 
 	# Output results
-	print "\nFinished!"
-	print "Found %d results, by crawling through %d pages. Queue at termination: %d" % (nusers, count, len(queue))
+	print "\nThread " + str(threadID) + "Finished!"
+        sys.stdout.flush()
+        activeThreads -= 1
 
 
 def write_user(writefile, user, followers) :
@@ -118,6 +131,7 @@ USAGE: crawler <int seedID> <int nThreads>
 """
 
     urlPool = []
+    urlFound = []
 
     if not len(sys.argv[1:]) == 2 :
         print usage
@@ -143,9 +157,14 @@ USAGE: crawler <int seedID> <int nThreads>
     poolLock = thread.allocate_lock()
 
     nlookups = 1
+    nusers = 1
+    activeThreads = 0
 
     for id in range(0,nThreads):
         print "Starting Thread " + str(id) + "..."
+        sys.stdout.flush()
+        activeThreads += 1
         thread.start_new_thread(crawlerRun, (id, 30))
 
-
+    while activeThreads > 0:
+        pass
