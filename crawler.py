@@ -72,7 +72,9 @@ def crawlerRun(threadID, sleeptime):
                 nlookups += 1
 
                 if followers == None :
+                    poolLock.acquire()
                     urlPool.append(user)
+                    poolLock.release()
                     nusers -= 1
                     print '\n\nProfile ' + str(user) + 'is busy.  Absorbing back into pool.\n'
                     sys.stdout.flush()
