@@ -8,49 +8,52 @@ TODO:
 * Make it a class rather than a script
 * Expand w/ possibility of watching in-degree (extra credit)
 
-BUGS (minor):
-* for some reason one entry of the form '~kip/"' made it into the results.
-* for some reason the result for 'http://www.its.caltech.edu/' has got no value
-
 """
 from fetcher import fetch_links
 import re, csv
 from collections import deque
 import random
 import time
+import thread
+import threading
+import time
 
 
-# Seeded with BarackObama
-def crawler(URL_seeds=['813286']):
+def crawler(crawlerID):
+
+        global poolLock, nlookups, urlPool
 
 	MAX_ITERATIONS = 200000 # How many iterations? Finite execution, despite tons of garbage pages.
-	MAX_RESULTS = 5000 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+	MAX_RESULTS = 15 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
 	URLS_FETCH = 3
 	
-	URLs_found = set(URL_seeds) # set holding pages all URLs encountered
 	nusers = 1
-
-	queue = deque(URL_seeds) # queue holding pages to process
 	
 	count = 0
 	output = 1
 
         # file to save structure in
-        f = open('structure.dat','w')
-
-        nlookups = 0
-        starttime = time.time()
+        f = open('structure.' + str(threadID) + '.dat','w')
 
 	while (queue) and (count < MAX_ITERATIONS) and (nusers < MAX_RESULTS):
 
-                if nlookups >= 150:
-                    nlookups = 0
-                    sleeptime = 3600 - (time.time() - starttime)
-                    if sleeptime > 0:
-                        print '\nSleeping for ' + str(sleeptime) + ' seconds\n'
-                        time.sleep(sleeptime)
-                    starttime = time.time()
-		user = queue.popleft() # fetch next page (FIFO -> Breath First)
+                """ Changes url periodically to avoid lookup limit """
+                if nlookups >= 125:
+                    # makes sure no new lookups occur while url is being changed
+#                    poolLock.acquire()
+#                    self.changeURL()
+#                    poolLock.release()
+
+                    exit()
+
+                while len(urlPool) == 0 :
+                    print "Thread " + str(crawlerID) + " unable to retrieve user from pool." \
+                          + " Pausing for 30 sec.\n"
+                    time.sleep(30)
+
+                poolLock.acquire()
+		user = urlPool.popleft() # fetch next page (FIFO -> Breath First)
+                poolLock.release()
 		nusers += 1
                 followers = fetch_links(user)
                 nlookups += 1
@@ -71,7 +74,10 @@ def crawler(URL_seeds=['813286']):
 
                         write_user(f, user, followers)
                         count += 1
-       			queue.extend(new_pages) # add pages to queue	
+                        if len(queue) < 200000:
+                            poolLock.acquire()
+       			    urlPool.extend(new_pages) # add pages to queue	
+                            poolLock.release()
         
 		# Print progress
 		if (((count % output) == 0) or ((nusers % 1) == 0)):
@@ -91,34 +97,51 @@ def write_user(writefile, user, followers) :
         writefile.write(' ' + fol_id)
     writefile.write('\n')    
 
-#Entrance of this script, just like the "main()" function in C.
+
+""" TODO: implement this function """
+#def changeURL() :
+
+
+# Entrance of the script
 
 if __name__ == "__main__":
     import sys, pstats, cProfile, os.path
 
-    if len(sys.argv)==1 :
-       if len(sys.argv)==1:
-    		# No args: Use default startpage
-    		print crawler()
-       else:
-              try:
-                   i = 0;
-                   input_filename = sys.argv[1];
-                   f1 = open(input_filename, "r")
-                   for line in f1:
-                         list = []
-                         list.append(line)
-                         i += 1
-                         print "Number %d" %i
-                         print list
-                         print crawler(list)                   
-                   f1.close()
+    usage = """
 
-              except IOError:
-                   print >> sys.stderr, "Input file doesn't exist"
-    else:
-    	# One or more webpages specified. Seed crawl with these.
-        print sys.argv[1:]
-        print crawler(sys.argv[1:])
+USAGE: crawler <int seedID> <int nThreads>
+       seedID must be a valid Twitter ID number
+       nThreads must be positive
+
+"""
+
+    urlPool = []
+
+    if not len(sys.argv[1:]) == 2 :
+        print usage
+        exit()
+
+    try:
+        seedID = int(sys.argv[1])
+        nThreads = int(sys.argv[2])
+    except ValueError:
+        print usage
+        exit()
+
+    # Tests the seedID
+    followers = fetch_links(seedID)
+    if followers == None:
+        print usage
+        print "Unable to open seedID.  Twitter may be busy.\n\n"
+        exit()
+
+    poolLock = thread.allocate_lock()
+
+    nlookups = 1
+    activeThreads = 0
+
+    for id in range(0,nThreads):
+        activeThreads += 1
+        thread.start_new_thread(crawler, (id))
 
 

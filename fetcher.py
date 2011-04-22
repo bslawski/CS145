@@ -68,6 +68,7 @@ class URLLister(SGMLParser):
 
 
 def fetch_links(userid):
+    new_ids = None
     try:
         target_url = 'http://api.twitter.com/1/followers/ids.json' \
                    + '?user_id=' + userid
@@ -82,7 +83,7 @@ def fetch_links(userid):
 
         sock.close()
     except:
-        print 'Unable to read follower list of user ' + userid
+        print 'Unable to read follower list of user ' + str(userid)
     return new_ids
         
 
