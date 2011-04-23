@@ -1,13 +1,6 @@
 #!/usr/bin/env python
 """
-A webcrawler that crawls webpages in the *.caltech.edu domain
-
-TODO:
-* Clean up (e.g. make class + fix style (line width etc.))
-* Implement robots.txt adherence
-* Make it a class rather than a script
-* Expand w/ possibility of watching in-degree (extra credit)
-
+A webcrawler that crawls Twitter using follower lists
 """
 from fetcher import fetch_links
 import re, csv
@@ -26,10 +19,10 @@ def crawlerRun(threadID, sleeptime):
         print "Thread: " + str(threadID) + " started"
         sys.stdout.flush()
 
-	MAX_RESULTS = 15 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+	MAX_RESULTS = 80 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
 	URLS_FETCH = 3
 	
-	output = 1
+	output = 10
 
         # file to save structure in
         try :
@@ -42,9 +35,6 @@ def crawlerRun(threadID, sleeptime):
 
 
 	while nusers < MAX_RESULTS:
-
-                print "Thread " + str(threadID) + " crawling..."
-                sys.stdout.flush()
 
                 """ Changes url periodically to avoid lookup limit """
                 if nlookups >= 125:
@@ -96,14 +86,14 @@ def crawlerRun(threadID, sleeptime):
                             poolLock.release()
         
 		# Print progress
-		if (nusers % output) == 0:
+		if ((nusers % output) == 0 and nusers < MAX_RESULTS):
 			print "Progress: %d pages crawled.  %d users in pool." % (nusers, len(urlPool))
 			sys.stdout.flush()
 
 	f.close()
 
 	# Output results
-	print "\nThread " + str(threadID) + "Finished!"
+	print "\nThread " + str(threadID) + " Finished!"
         sys.stdout.flush()
         activeThreads -= 1
 
@@ -163,8 +153,6 @@ USAGE: crawler <int seedID> <int nThreads>
     activeThreads = 0
 
     for id in range(0,nThreads):
-        print "Starting Thread " + str(id) + "..."
-        sys.stdout.flush()
         activeThreads += 1
         thread.start_new_thread(crawlerRun, (id, 30))
 
