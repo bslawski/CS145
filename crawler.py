@@ -10,7 +10,7 @@ import time
 import thread
 import threading
 import time
-
+import os
 
 def crawlerRun(threadID, sleeptime):
 
@@ -19,7 +19,7 @@ def crawlerRun(threadID, sleeptime):
         print "Thread: " + str(threadID) + " started"
         sys.stdout.flush()
 
-	MAX_RESULTS = 80 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+	MAX_RESULTS = 20 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
 	URLS_FETCH = 3
 	
 	output = 10
@@ -49,8 +49,8 @@ def crawlerRun(threadID, sleeptime):
                     exit()
 
                 while len(urlPool) == 0 :
-                    print "Thread " + str(threadID) + " unable to retrieve user from pool." \
-                          + " Pausing for " + str(sleeptime) + " sec.\n"
+                    print "\t\t\t\tThread " + str(threadID) + " unable to retrieve user from pool." \
+                          + " Pausing for " + str(sleeptime) + " sec."
                     sys.stdout.flush()
                     time.sleep(30)
 
@@ -66,7 +66,7 @@ def crawlerRun(threadID, sleeptime):
                     urlPool.append(user)
                     poolLock.release()
                     nusers -= 1
-                    print '\n\nProfile ' + str(user) + 'is busy.  Absorbing back into pool.\n'
+                    print '\t\t\t\tProfile ' + str(user) + ' is busy.  Absorbing back into pool.'
                     sys.stdout.flush()
                     continue
 
@@ -79,7 +79,7 @@ def crawlerRun(threadID, sleeptime):
                             if not (ids in urlPool or ids in urlFound) :
                                 new_pages.append(ids)
 
-                        write_user(f, user, followers)
+                        writeUser(f, user, followers)
                         if len(urlPool) < 200000:
                             poolLock.acquire()
        			    urlPool.extend(new_pages) # add pages to queue	
@@ -93,16 +93,43 @@ def crawlerRun(threadID, sleeptime):
 	f.close()
 
 	# Output results
-	print "\nThread " + str(threadID) + " Finished!"
+	print "Thread " + str(threadID) + " Finished!"
         sys.stdout.flush()
         activeThreads -= 1
 
 
-def write_user(writefile, user, followers) :
+def writeUser(writefile, user, followers) :
     writefile.write(user + ':')
     for fol_id in followers :
         writefile.write(' ' + fol_id)
     writefile.write('\n')    
+
+
+def concatFiles(nfiles) :
+    print "Writing data file..."
+
+    count = 0
+
+    try:
+        outfile = open('structure.dat', 'w')
+    except IOError:
+        print "Unable to open structure.dat for writing."
+        exit()
+
+    for id in range(0,nfiles):
+        try:
+            tempfile = open('structure.' + str(id) + '.dat', 'r')
+        except IOError:
+            print "Unable to open structure." + str(id) + ".dat for reading."
+
+        for line in tempfile:
+            outfile.write(line)
+            count += 1
+        tempfile.close()
+        os.remove('structure.' + str(id) + '.dat')
+
+    outfile.close()
+    print "Data file written.  Structure contains " + str(count) + " nodes."
 
 
 """ TODO: implement this function """
@@ -137,7 +164,7 @@ USAGE: crawler <int seedID> <int nThreads>
         exit()
 
     # Tests the seedID
-    print seedID
+    print "Beginning crawl at user ID " + seedID
     followers = fetch_links(seedID)
     if followers == None:
         print usage
@@ -158,3 +185,7 @@ USAGE: crawler <int seedID> <int nThreads>
 
     while activeThreads > 0:
         pass
+
+    concatFiles(nThreads)
+
+    print "Crawl Finished!  Results in structure.dat"

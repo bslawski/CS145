@@ -83,7 +83,7 @@ def fetch_links(userid):
 
         sock.close()
     except:
-        print 'Unable to read follower list of user ' + str(userid)
+        print '\t\t\t\tUnable to read follower list of user ' + str(userid)
     return new_ids
         
 
