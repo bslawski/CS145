@@ -14,15 +14,15 @@ import os
 
 def crawlerRun(threadID, sleeptime):
 
-        global poolLock, nlookups, urlPool, urlFound, nusers, activeThreads
+        global poolLock, nlookups, urlPool, urlFound, activeThreads
 
-        print "Thread: " + str(threadID) + " started"
+        print "Thread " + str(threadID) + " Started"
         sys.stdout.flush()
 
-	MAX_RESULTS = 20 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+	MAX_RESULTS = 70 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
 	URLS_FETCH = 3
 	
-	output = 10
+	output = 5
 
         # file to save structure in
         try :
@@ -34,7 +34,7 @@ def crawlerRun(threadID, sleeptime):
             exit()
 
 
-	while nusers < MAX_RESULTS:
+	while len(urlFound) < MAX_RESULTS:
 
                 """ Changes url periodically to avoid lookup limit """
                 if nlookups >= 125:
@@ -57,7 +57,6 @@ def crawlerRun(threadID, sleeptime):
                 poolLock.acquire()
 		user = urlPool.pop(0) # fetch next page (FIFO -> Breath First)
                 poolLock.release()
-		nusers += 1
                 followers = fetch_links(user)
                 nlookups += 1
 
@@ -65,7 +64,6 @@ def crawlerRun(threadID, sleeptime):
                     poolLock.acquire()
                     urlPool.append(user)
                     poolLock.release()
-                    nusers -= 1
                     print '\t\t\t\tProfile ' + str(user) + ' is busy.  Absorbing back into pool.'
                     sys.stdout.flush()
                     continue
@@ -86,8 +84,8 @@ def crawlerRun(threadID, sleeptime):
                             poolLock.release()
         
 		# Print progress
-		if ((nusers % output) == 0 and nusers < MAX_RESULTS):
-			print "Progress: %d pages crawled.  %d users in pool." % (nusers, len(urlPool))
+		if ((len(urlFound) % output) == 0 and len(urlFound) < MAX_RESULTS):
+			print "Progress: %d pages crawled.  %d users in pool." % (len(urlFound), len(urlPool))
 			sys.stdout.flush()
 
 	f.close()
@@ -116,7 +114,7 @@ def concatFiles(nfiles) :
         print "Unable to open structure.dat for writing."
         exit()
 
-    for id in range(0,nfiles):
+    for id in range(0, nfiles + 1):
         try:
             tempfile = open('structure.' + str(id) + '.dat', 'r')
         except IOError:
@@ -140,6 +138,8 @@ def concatFiles(nfiles) :
 
 if __name__ == "__main__":
     import sys, pstats, cProfile, os.path
+
+    startTime = time.time()
 
     usage = """
 
@@ -171,12 +171,23 @@ USAGE: crawler <int seedID> <int nThreads>
         print "Unable to open seedID.  Twitter may be busy.\n\n"
         exit()
 
+
+    try :
+        f = open('structure.' + str(nThreads) + '.dat','w')
+        writeUser(f, seedID, followers)
+        f.close()
+    except IOError :
+        print "Unable to open " + "structure." + str(nThreads) + \
+              ".dat for writing.  Crawler exiting."
+        sys.stdout.flush()
+        exit()
+
+
     urlPool.extend(followers)
 
     poolLock = thread.allocate_lock()
 
     nlookups = 1
-    nusers = 1
     activeThreads = 0
 
     for id in range(0,nThreads):
@@ -187,5 +198,12 @@ USAGE: crawler <int seedID> <int nThreads>
         pass
 
     concatFiles(nThreads)
+
+    crawlTime = time.time() - startTime
+    crawlSec = int(crawlTime % 60)
+    crawlMin = int((crawlTime % 3600) / 60)
+    crawlHour = int(crawlTime / 3600)
+    print "Crawl Time:  " + str(crawlHour) + " Hours  " \
+          + str(crawlMin) + " Min  " + str(crawlSec) + " Sec"
 
     print "Crawl Finished!  Results in structure.dat"
