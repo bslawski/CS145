@@ -14,12 +14,13 @@ import os
 
 def crawlerRun(threadID, sleeptime):
 
-        global poolLock, nlookups, urlPool, urlFound, activeThreads
+        global poolLock, nlookups, urlPool, urlFound, activeThreads, poolOpen
 
         print "Thread " + str(threadID) + " Started"
         sys.stdout.flush()
 
 	MAX_RESULTS = 70 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+        POOL_LIMIT = 5000 
 	URLS_FETCH = 3
 	
 	output = 5
@@ -78,15 +79,21 @@ def crawlerRun(threadID, sleeptime):
                                 new_pages.append(ids)
 
                         writeUser(f, user, followers)
-                        if len(urlPool) < 200000:
+                        if poolOpen:
                             poolLock.acquire()
        			    urlPool.extend(new_pages) # add pages to queue	
                             poolLock.release()
         
 		# Print progress
 		if ((len(urlFound) % output) == 0 and len(urlFound) < MAX_RESULTS):
-			print "Progress: %d pages crawled.  %d users in pool." % (len(urlFound), len(urlPool))
-			sys.stdout.flush()
+                    print "Progress: %d pages crawled.  %d users in pool." % (len(urlFound), len(urlPool))
+                    sys.stdout.flush()
+
+                # Closes url pool if max size is reached.  Prevents slow-down of crawl
+                if len(urlPool) > POOL_LIMIT and poolOpen:
+                    print "\t\t\t\tMax URL Pool size reached! Closing Pool..."
+                    sys.stdout.flush()
+                    poolOpen = False
 
 	f.close()
 
@@ -189,6 +196,7 @@ USAGE: crawler <int seedID> <int nThreads>
 
     nlookups = 1
     activeThreads = 0
+    poolOpen = True
 
     for id in range(0,nThreads):
         activeThreads += 1
