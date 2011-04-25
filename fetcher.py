@@ -19,6 +19,7 @@ from sgmllib import SGMLParser
 from urlparse import urljoin
 import urllib
 import urllib2
+import httplib
 
 #SGMLParser is like a template for implementing a HTML parser. All its methods
 #for handling HTML tags are "do-nothing" methods. We have to inherit from it
@@ -67,13 +68,17 @@ class URLLister(SGMLParser):
         return list(res)
 
 
-def fetch_links(userid):
-    new_ids = None
-    try:
+def fetch_links(userid, linkIP, linkPort):
+        new_ids = None
+
+#    try:
         target_url = 'http://api.twitter.com/1/followers/ids.json' \
                    + '?user_id=' + userid
-        sock = urllib.urlopen(target_url)
-        new_ids = sock.read()
+        link = httplib.HTTPConnection(linkIP, linkPort)
+        link.connect()
+        link.request("GET", target_url)
+        resp = link.getresponse()
+        new_ids = resp.read()
         if new_ids == new_ids.lstrip('<'):
             new_ids = new_ids.lstrip('[')
             new_ids = new_ids.rstrip(']')
@@ -81,10 +86,9 @@ def fetch_links(userid):
         else:
             new_ids = None
 
-        sock.close()
-    except:
-        print '\t\t\t\tUnable to read follower list of user ' + str(userid)
-    return new_ids
+#    except:
+#        print '\t\t\t\tUnable to read follower list of user ' + str(userid)
+        return new_ids
         
 
 

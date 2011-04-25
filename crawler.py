@@ -11,15 +11,16 @@ import thread
 import threading
 import time
 import os
+import httplib
 
 def crawlerRun(threadID, sleeptime):
 
-        global poolLock, nlookups, urlPool, urlFound, activeThreads, poolOpen
+        global poolLock, urlPool, urlFound, activeThreads, poolOpen, proxyLock, proxyInd, proxyList
 
         print "Thread " + str(threadID) + " Started"
         sys.stdout.flush()
 
-	MAX_RESULTS = 70 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+	MAX_RESULTS = 20 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
         POOL_LIMIT = 5000 
 	URLS_FETCH = 3
 	
@@ -34,31 +35,34 @@ def crawlerRun(threadID, sleeptime):
             sys.stdout.flush()
             exit()
 
+        nlookups = 150
+        myLink = None
 
 	while len(urlFound) < MAX_RESULTS:
 
                 """ Changes url periodically to avoid lookup limit """
                 if nlookups >= 125:
 
-                    print "MAX LOOKUPS REACHED!"
+                    print "\t\t\t\tThread " + str(threadID) + " aquiring new proxy."
                     sys.stdout.flush()
-                    # makes sure no new lookups occur while url is being changed
-#                    poolLock.acquire()
-#                    self.changeURL()
-#                    poolLock.release()
-
-                    exit()
+                    proxyLock.acquire()
+                    myLink = changeURL()
+                    nlookups = 0
+                    myIP = myLink[0]
+                    myPort = myLink[1]
+                    proxyLock.release()
+                    print "\t\t\t\tUsing " + myIP + ":" + str(myPort)
 
                 while len(urlPool) == 0 :
                     print "\t\t\t\tThread " + str(threadID) + " unable to retrieve user from pool." \
                           + " Pausing for " + str(sleeptime) + " sec."
                     sys.stdout.flush()
-                    time.sleep(30)
+                    time.sleep(sleeptime)
 
                 poolLock.acquire()
 		user = urlPool.pop(0) # fetch next page (FIFO -> Breath First)
                 poolLock.release()
-                followers = fetch_links(user)
+                followers = fetch_links(user, myIP, myPort)
                 nlookups += 1
 
                 if followers == None :
@@ -72,6 +76,7 @@ def crawlerRun(threadID, sleeptime):
                 urlFound.append(user)
 
 		if (not (followers == None) and len(followers) > 0 and not (followers[0] == '')):
+                        print followers
                         new_pages = []
 			# Add unencountered pages to queue
                         for ids in followers :
@@ -137,8 +142,32 @@ def concatFiles(nfiles) :
     print "Data file written.  Structure contains " + str(count) + " nodes."
 
 
-""" TODO: implement this function """
-#def changeURL() :
+def changeURL() :
+    global proxyInd, proxyList
+
+    newIP = proxyList[0][proxyInd]
+    newPort = proxyList[1][proxyInd]
+    proxyInd = (proxyInd + 1) % len(proxyList[0])
+
+    return [newIP, newPort]
+
+
+def readProxyList() :
+    try:
+        proxyFile = open('proxy_list.txt')
+    except IOError:
+        print "Proxy file not found!"
+        exit()
+
+    proxyIP = []
+    proxyPort = []
+
+    for line in proxyFile:
+        proxyLine = line.split()
+        proxyIP.append(proxyLine[0])
+        proxyPort.append(int(proxyLine[1]))
+
+    return [proxyIP, proxyPort]
 
 
 # Entrance of the script
@@ -156,6 +185,8 @@ USAGE: crawler <int seedID> <int nThreads>
 
 """
 
+    proxyList = readProxyList()
+
     urlPool = []
     urlFound = []
 
@@ -172,7 +203,8 @@ USAGE: crawler <int seedID> <int nThreads>
 
     # Tests the seedID
     print "Beginning crawl at user ID " + seedID
-    followers = fetch_links(seedID)
+    followers = fetch_links(seedID, proxyList[0][0], proxyList[1][0])
+    print followers
     if followers == None:
         print usage
         print "Unable to open seedID.  Twitter may be busy.\n\n"
@@ -193,14 +225,15 @@ USAGE: crawler <int seedID> <int nThreads>
     urlPool.extend(followers)
 
     poolLock = thread.allocate_lock()
+    proxyLock = thread.allocate_lock()
 
-    nlookups = 1
+    proxyInd = 0
     activeThreads = 0
     poolOpen = True
 
     for id in range(0,nThreads):
         activeThreads += 1
-        thread.start_new_thread(crawlerRun, (id, 30))
+        thread.start_new_thread(crawlerRun, (id, 15))
 
     while activeThreads > 0:
         pass
