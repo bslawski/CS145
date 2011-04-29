@@ -86,6 +86,7 @@ def fetch_links(userid, linkIP, linkPort):
         else:
             new_ids = None
 
+        link.close()
 #    except:
 #        print '\t\t\t\tUnable to read follower list of user ' + str(userid)
         return new_ids

@@ -20,7 +20,7 @@ def crawlerRun(threadID, sleeptime):
         print "Thread " + str(threadID) + " Started"
         sys.stdout.flush()
 
-	MAX_RESULTS = 20 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+	MAX_RESULTS = 300 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
         POOL_LIMIT = 5000 
 	URLS_FETCH = 3
 	
@@ -76,7 +76,6 @@ def crawlerRun(threadID, sleeptime):
                 urlFound.append(user)
 
 		if (not (followers == None) and len(followers) > 0 and not (followers[0] == '')):
-                        print followers
                         new_pages = []
 			# Add unencountered pages to queue
                         for ids in followers :
@@ -136,7 +135,7 @@ def concatFiles(nfiles) :
             outfile.write(line)
             count += 1
         tempfile.close()
-        os.remove('structure.' + str(id) + '.dat')
+#        os.remove('structure.' + str(id) + '.dat')
 
     outfile.close()
     print "Data file written.  Structure contains " + str(count) + " nodes."
