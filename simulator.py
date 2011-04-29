@@ -1,5 +1,6 @@
 import sys
 import random
+import time
 
 class UserNode :
 
@@ -8,10 +9,10 @@ class UserNode :
         self.followers = []
         self.active = -1
         self.activate = False
-        self.thr = float(random.randint(1,81))/100.
+        self.thr = float(random.randint(1,60))/100.
         self.nfollowing = 0
         self.influenced = 0
-        self.prob = float(random.randint(1,60))/1000.
+        self.prob = float(random.randint(1,75))/1000.
 
     def setActivate(self, activate) :
         if self.active == -1:
@@ -32,9 +33,6 @@ class UserNode :
     def influence(self) :
         self.influenced += 1
 
-    def resetInfluence(self) :
-        self.influenced = 0
-
     def changedMind(self) :
         if self.active > -1:
             return False
@@ -47,6 +45,9 @@ class SimulatorFrame :
     def __init__(self) :
         self.timestep = 0
         self.nodelist = {}
+        self.newActives = []
+        self.lastsize = -1
+        self.thissize = 0
 
     def addNode(self, nodeID) :
         newnode = UserNode(nodeID)
@@ -54,6 +55,7 @@ class SimulatorFrame :
         return newnode
 
     def makeActive(self, userID) :
+        self.newActives.append(userID)
         self.nodelist[userID].active = 0
 
     def readStructure(self, structureFile) :
@@ -68,9 +70,10 @@ class SimulatorFrame :
             for user in userLine[1:]:
                 newnode.followers.append(int(user))
             linecount += 1
-            if linecount % 1000 == 0:
+            if linecount % 10000 == 0:
                 print "\t\t" + str(linecount) + " Users Read"
         f.close()
+        print "\tStructure Contains " + str(linecount) + " Users"
 
         # reads follower lists
         print "\tReading Follower Lists..."
@@ -79,7 +82,7 @@ class SimulatorFrame :
         f = open(structureFile)
         for node in self.nodelist.values():
             count += 1
-            if count % 1000 == 0:
+            if count % 10000 == 0:
                 print "\t\t" + str(count) + " / " + str(linecount)
             for othernode in node.followers:
                 if othernode in self.nodelist:
@@ -90,6 +93,8 @@ class SimulatorFrame :
         for node in self.nodelist.values():
             if node.isActive() > -1:
                 nActive += 1
+            self.lastsize = self.thissize
+            self.thissize = nActive
         return nActive
 
 
@@ -101,24 +106,26 @@ class SimulatorFrame :
 
 
     def lin_thr_step(self) :
-        for node in self.nodelist.values():
-            if node.isActive() > -1:
-                for follower in node.followers:
-                    if follower in self.nodelist:
-                        self.nodelist[follower].influence()
+        for node in self.newActives:
+            for follower in self.nodelist[node].followers:
+                if follower in self.nodelist:
+                    self.nodelist[follower].influence()
+        self.newActives = []
         for node in self.nodelist.values():
             if node.changedMind():
+                self.newActives.append(node.userID)
                 node.setActivate(True)
-            node.resetInfluence()
 
     def ind_cscd_step(self) :
-        for node in self.nodelist.values():
-            if node.isActive() == self.timestep - 1:
-                for follower in node.followers:
-                    roll = random.random()
-                    if roll < node.prob:
-                        if follower in self.nodelist:
-                            self.nodelist[follower].setActivate(True)
+        nextActives = []
+        for node in self.newActives:
+            for follower in node.followers:
+                roll = random.random()
+                if roll < node.prob:
+                    if follower in self.nodelist:
+                        self.nodelist[follower].setActivate(True)
+                        nextActives.append(follower)
+        self.newActives = nextActives
         
 
     def simulateStep(self, time) :
@@ -149,29 +156,38 @@ sim = SimulatorFrame()
 print "Reading Structure from file: " + structFile
 sim.readStructure(structFile)
 
+starttime = time.time()
+
 print "Beginning Simulation with " + str(nSeeds) + " Seed Nodes..."
 seedNode = sim.nodelist.values()[random.randint(0,len(sim.nodelist)-1)]
 sim.makeActive(seedNode.userID)
 for i in range(0, nSeeds - 1):
-    if i in sim.nodelist:
+    if seedNode.followers[i] in sim.nodelist:
         sim.makeActive(sim.nodelist[seedNode.followers[i]].userID)
     else:
         nSeeds += 1
 
 for time in range(1,nIters + 1) :
     sim.simulateStep(time)
-    if time % 1 == 0:
+    if time % 10 == 0:
         nActive = sim.activeCount()
         nNodes = len(sim.nodelist)
         print "Timestep " + str(time) + ":  " + str(nActive) \
               + " / " + str(nNodes) + "  Nodes Active"
-        if nActive == nNodes:
+        if nActive == nNodes or sim.lastsize == sim.thissize:
             break
 
 print "Printing Results to " + sys.argv[2] + "..."
 sim.printResults(sys.argv[2])
 print "Simulation Complete!"
 
+runtime = int(time.time() - starttime)
+sec = str(runtime % 60)
+mins = str(int(runtime / 60) % 60)
+hrs = str(int(runtime / 3600))
+
+print "Simulation Time: " + hrs + " hours  " \
+      + mins + " minutes  " + sec + " seconds"
 
 
 
