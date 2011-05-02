@@ -20,7 +20,7 @@ def crawlerRun(threadID, sleeptime):
         print "Thread " + str(threadID) + " Started"
         sys.stdout.flush()
 
-	MAX_RESULTS = 300 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+	MAX_RESULTS = 500 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
         POOL_LIMIT = 5000 
 	URLS_FETCH = 3
 	
@@ -72,6 +72,18 @@ def crawlerRun(threadID, sleeptime):
                     print '\t\t\t\tProfile ' + str(user) + ' is busy.  Absorbing back into pool.'
                     sys.stdout.flush()
                     continue
+
+                try:
+                    int(followers[0])
+                except ValueError:
+                    poolLock.acquire()
+                    urlPool.append(user)
+                    poolLock.release()
+                    print followers
+                    proxyLock.acquire()
+                    myLink = changeURL()
+                    proxyLock.release()
+                    continue 
 
                 urlFound.append(user)
 

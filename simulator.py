@@ -119,9 +119,9 @@ class SimulatorFrame :
     def ind_cscd_step(self) :
         nextActives = []
         for node in self.newActives:
-            for follower in node.followers:
+            for follower in self.nodelist[node].followers:
                 roll = random.random()
-                if roll < node.prob:
+                if roll < self.nodelist[node].prob:
                     if follower in self.nodelist:
                         self.nodelist[follower].setActivate(True)
                         nextActives.append(follower)
@@ -130,8 +130,8 @@ class SimulatorFrame :
 
     def simulateStep(self, time) :
         self.timestep = time
-#        self.ind_cscd_step()
-        self.lin_thr_step()
+        self.ind_cscd_step()
+#        self.lin_thr_step()
         self.activeStep()
 
 
@@ -181,7 +181,7 @@ print "Printing Results to " + sys.argv[2] + "..."
 sim.printResults(sys.argv[2])
 print "Simulation Complete!"
 
-runtime = int(time.time() - starttime)
+runtime = int((time.time()) - starttime)
 sec = str(runtime % 60)
 mins = str(int(runtime / 60) % 60)
 hrs = str(int(runtime / 3600))
