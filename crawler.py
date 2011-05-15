@@ -20,7 +20,7 @@ def crawlerRun(threadID, sleeptime):
         print "Thread " + str(threadID) + " Started"
         sys.stdout.flush()
 
-	MAX_RESULTS = 500 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+	MAX_RESULTS = 1000 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
         POOL_LIMIT = 5000 
 	URLS_FETCH = 3
 	
@@ -41,9 +41,9 @@ def crawlerRun(threadID, sleeptime):
 	while len(urlFound) < MAX_RESULTS:
 
                 """ Changes url periodically to avoid lookup limit """
-                if nlookups >= 125:
+                if nlookups >= 20:
 
-                    print "\t\t\t\tThread " + str(threadID) + " aquiring new proxy."
+#                    print "\t\t\t\tThread " + str(threadID) + " aquiring new proxy."
                     sys.stdout.flush()
                     proxyLock.acquire()
                     myLink = changeURL()
@@ -67,9 +67,9 @@ def crawlerRun(threadID, sleeptime):
 
                 if followers == None :
                     poolLock.acquire()
-                    urlPool.append(user)
+                    urlPool.insert(0, user)
                     poolLock.release()
-                    print '\t\t\t\tProfile ' + str(user) + ' is busy.  Absorbing back into pool.'
+#                    print '\t\t\t\tProfile ' + str(user) + ' is busy.  Absorbing back into pool.'
                     sys.stdout.flush()
                     continue
 
@@ -215,7 +215,7 @@ USAGE: crawler <int seedID> <int nThreads>
     # Tests the seedID
     print "Beginning crawl at user ID " + seedID
     followers = fetch_links(seedID, proxyList[0][0], proxyList[1][0])
-    print followers
+#    print followers
     if followers == None:
         print usage
         print "Unable to open seedID.  Twitter may be busy.\n\n"

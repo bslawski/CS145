@@ -75,14 +75,23 @@ def fetch_links(userid, linkIP, linkPort):
         target_url = 'http://api.twitter.com/1/followers/ids.json' \
                    + '?user_id=' + userid
         link = httplib.HTTPConnection(linkIP, linkPort)
-        link.connect()
-        link.request("GET", target_url)
-        resp = link.getresponse()
-        new_ids = resp.read()
+        try:
+            link.connect()
+            link.request("GET", target_url)
+            resp = link.getresponse()
+            new_ids = resp.read()
+#            print new_ids
+        except:
+#            print "Connection Timed Out"
+            return None
         if new_ids == new_ids.lstrip('<'):
             new_ids = new_ids.lstrip('[')
             new_ids = new_ids.rstrip(']')
             new_ids = new_ids.split(',')
+            try:
+                int(new_ids[0])
+            except ValueError:
+                return None
         else:
             new_ids = None
 
