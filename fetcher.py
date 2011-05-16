@@ -88,10 +88,13 @@ def fetch_links(userid, linkIP, linkPort):
             new_ids = new_ids.lstrip('[')
             new_ids = new_ids.rstrip(']')
             new_ids = new_ids.split(',')
-            try:
-                int(new_ids[0])
-            except ValueError:
-                return None
+
+            # handled by crawler
+#            try:
+#                int(new_ids[0])
+#            except ValueError:
+#                return None
+
         else:
             new_ids = None
 

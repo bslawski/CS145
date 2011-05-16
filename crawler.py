@@ -17,14 +17,13 @@ def crawlerRun(threadID, sleeptime):
 
         global poolLock, urlPool, urlFound, activeThreads, poolOpen, proxyLock, proxyInd, proxyList
 
-        print "Thread " + str(threadID) + " Started"
+#        print "Thread " + str(threadID) + " Started"
         sys.stdout.flush()
 
-	MAX_RESULTS = 1000 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
-        POOL_LIMIT = 5000 
-	URLS_FETCH = 3
+	MAX_RESULTS = 100000 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
+        POOL_LIMIT = 200000
 	
-	output = 5
+	output = 100
 
         # file to save structure in
         try :
@@ -51,16 +50,19 @@ def crawlerRun(threadID, sleeptime):
                     myIP = myLink[0]
                     myPort = myLink[1]
                     proxyLock.release()
-                    print "\t\t\t\tUsing " + myIP + ":" + str(myPort)
+#                    print "\t\t\t\tUsing " + myIP + ":" + str(myPort)
 
                 while len(urlPool) == 0 :
-                    print "\t\t\t\tThread " + str(threadID) + " unable to retrieve user from pool." \
-                          + " Pausing for " + str(sleeptime) + " sec."
+#                    print "\t\t\t\tThread " + str(threadID) + " unable to retrieve user from pool." \
+#                          + " Pausing for " + str(sleeptime) + " sec."
                     sys.stdout.flush()
                     time.sleep(sleeptime)
 
                 poolLock.acquire()
-		user = urlPool.pop(0) # fetch next page (FIFO -> Breath First)
+                if len(urlPool) > 0:
+                    user = urlPool.pop(0) # fetch next page (FIFO -> Breath First)
+                else:
+                    continue
                 poolLock.release()
                 followers = fetch_links(user, myIP, myPort)
                 nlookups += 1
@@ -79,7 +81,7 @@ def crawlerRun(threadID, sleeptime):
                     poolLock.acquire()
                     urlPool.append(user)
                     poolLock.release()
-                    print followers
+#                    print followers
                     proxyLock.acquire()
                     myLink = changeURL()
                     proxyLock.release()
@@ -114,7 +116,8 @@ def crawlerRun(threadID, sleeptime):
 	f.close()
 
 	# Output results
-	print "Thread " + str(threadID) + " Finished!"
+	print "Thread " + str(threadID) + " Finished! " + \
+              str(activeThreads - 1) + " Threads Running."
         sys.stdout.flush()
         activeThreads -= 1
 
@@ -242,9 +245,30 @@ USAGE: crawler <int seedID> <int nThreads>
     activeThreads = 0
     poolOpen = True
 
-    for id in range(0,nThreads):
-        activeThreads += 1
-        thread.start_new_thread(crawlerRun, (id, 15))
+#    print followers
+
+    nfollowers = len(followers)
+    if nfollowers < nThreads:
+
+        for threadID in range(0, nfollowers):
+            print "Thread " + str(threadID) + " Started"
+            activeThreads += 1
+            thread.start_new_thread(crawlerRun, (threadID, 15))
+
+        while len(urlPool) < nThreads - nfollowers:
+            pass
+
+        for threadID in range(nfollowers,nThreads):
+            print "Thread " + str(threadID) + " Started"
+            activeThreads += 1
+            thread.start_new_thread(crawlerRun, (threadID, 15))
+
+    else:
+        for threadID in range(0,nThreads):
+            print "Thread " + str(threadID) + " Started"
+            activeThreads += 1
+            thread.start_new_thread(crawlerRun, (threadID, 15))
+
 
     while activeThreads > 0:
         pass
