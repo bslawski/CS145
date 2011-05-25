@@ -15,15 +15,15 @@ import httplib
 
 def crawlerRun(threadID, sleeptime):
 
-        global poolLock, urlPool, urlFound, activeThreads, poolOpen, proxyLock, proxyInd, proxyList
+        global poolLock, urlPool, urlFound, activeThreads, poolOpen, proxyLock, proxyInd, proxyList, poolLen, foundLen
 
 #        print "Thread " + str(threadID) + " Started"
         sys.stdout.flush()
 
 	MAX_RESULTS = 100000 #20010 # How many results? Finite execution, rather than crawling entire reachable(URL_seeds)'
-        POOL_LIMIT = 200000
+        POOL_LIMIT = 100000
 	
-	output = 100
+	output = 10
 
         # file to save structure in
         try :
@@ -37,7 +37,7 @@ def crawlerRun(threadID, sleeptime):
         nlookups = 150
         myLink = None
 
-	while len(urlFound) < MAX_RESULTS:
+	while foundLen < MAX_RESULTS:
 
                 """ Changes url periodically to avoid lookup limit """
                 if nlookups >= 20:
@@ -52,14 +52,15 @@ def crawlerRun(threadID, sleeptime):
                     proxyLock.release()
 #                    print "\t\t\t\tUsing " + myIP + ":" + str(myPort)
 
-                while len(urlPool) == 0 :
+                while poolLen == 0 :
 #                    print "\t\t\t\tThread " + str(threadID) + " unable to retrieve user from pool." \
 #                          + " Pausing for " + str(sleeptime) + " sec."
-                    sys.stdout.flush()
+#                    sys.stdout.flush()
                     time.sleep(sleeptime)
+                    poolLen = len(urlPool)
 
                 poolLock.acquire()
-                if len(urlPool) > 0:
+                if poolLen > 0:
                     user = urlPool.pop(0) # fetch next page (FIFO -> Breath First)
                 else:
                     continue
@@ -71,6 +72,9 @@ def crawlerRun(threadID, sleeptime):
                     poolLock.acquire()
                     urlPool.insert(0, user)
                     poolLock.release()
+                    proxyLock.acquire()
+                    myLink = changeURL()
+                    proxyLock.release()
 #                    print '\t\t\t\tProfile ' + str(user) + ' is busy.  Absorbing back into pool.'
                     sys.stdout.flush()
                     continue
@@ -88,6 +92,7 @@ def crawlerRun(threadID, sleeptime):
                     continue 
 
                 urlFound.append(user)
+                foundLen += 1
 
 		if (not (followers == None) and len(followers) > 0 and not (followers[0] == '')):
                         new_pages = []
@@ -102,13 +107,17 @@ def crawlerRun(threadID, sleeptime):
        			    urlPool.extend(new_pages) # add pages to queue	
                             poolLock.release()
         
+#                foundLen = len(urlFound)
+
 		# Print progress
-		if ((len(urlFound) % output) == 0 and len(urlFound) < MAX_RESULTS):
-                    print "Progress: %d pages crawled.  %d users in pool." % (len(urlFound), len(urlPool))
+		if ((foundLen % output) == 0 and foundLen < MAX_RESULTS):
+                    poolLen = len(urlPool)
+                    print "Progress: %d pages crawled.  %d users in pool." % (foundLen, poolLen)
                     sys.stdout.flush()
 
                 # Closes url pool if max size is reached.  Prevents slow-down of crawl
-                if len(urlPool) > POOL_LIMIT and poolOpen:
+                if poolOpen : poolLen = len(urlPool)
+                if poolLen > POOL_LIMIT and poolOpen:
                     print "\t\t\t\tMax URL Pool size reached! Closing Pool..."
                     sys.stdout.flush()
                     poolOpen = False
@@ -157,18 +166,23 @@ def concatFiles(nfiles) :
 
 
 def changeURL() :
-    global proxyInd, proxyList
-
+    global proxyInd, proxyList, proxyFile
+#    print "using IP number " + str(proxyInd)
     newIP = proxyList[0][proxyInd]
     newPort = proxyList[1][proxyInd]
-    proxyInd = (proxyInd + 1) % len(proxyList[0])
+    proxyInd += 1
+    if proxyInd == len(proxyList[0]):
+        print "\tswitching proxy list..."
+        proxyFile = (proxyFile + 1) % 2
+        readProxyList(proxyFile)
 
     return [newIP, newPort]
 
 
-def readProxyList() :
+def readProxyList(proxyFile) :
+    global proxyInd
     try:
-        proxyFile = open('proxy_list.txt')
+        f = open('proxy_list' + str(proxyFile) + '.txt')
     except IOError:
         print "Proxy file not found!"
         exit()
@@ -176,11 +190,13 @@ def readProxyList() :
     proxyIP = []
     proxyPort = []
 
-    for line in proxyFile:
+    for line in f:
         proxyLine = line.split()
         proxyIP.append(proxyLine[0])
         proxyPort.append(int(proxyLine[1]))
 
+    print "\tUsing proxy list " + str(proxyFile)
+    proxyInd = 0
     return [proxyIP, proxyPort]
 
 
@@ -199,7 +215,8 @@ USAGE: crawler <int seedID> <int nThreads>
 
 """
 
-    proxyList = readProxyList()
+    proxyFile = 0
+    proxyList = readProxyList(proxyFile)
 
     urlPool = []
     urlFound = []
@@ -248,6 +265,8 @@ USAGE: crawler <int seedID> <int nThreads>
 #    print followers
 
     nfollowers = len(followers)
+    poolLen = nfollowers
+    foundLen = 1
     if nfollowers < nThreads:
 
         for threadID in range(0, nfollowers):

@@ -82,7 +82,7 @@ def fetch_links(userid, linkIP, linkPort):
             new_ids = resp.read()
 #            print new_ids
         except:
-#            print "Connection Timed Out"
+#            print "Connection Failed"
             return None
         if new_ids == new_ids.lstrip('<'):
             new_ids = new_ids.lstrip('[')
